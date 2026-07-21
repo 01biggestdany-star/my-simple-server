@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Message Board</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, Arial, sans-serif;
+            background: #f0f2f5;
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #1a1a2e;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+        .message-form {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .message-form textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            resize: vertical;
+            font-family: -apple-system, Arial, sans-serif;
+            font-size: 16px;
+            min-height: 80px;
+        }
+        .message-form button {
+            margin-top: 10px;
+            padding: 12px 24px;
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 17px;
+            width: 100%;
+        }
+        .message-form button:active {
+            background: #0055CC;
+        }
+        .messages-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        .message-item {
+            border-bottom: 1px solid #eee;
+            padding: 15px 0;
+        }
+        .message-item:last-child {
+            border-bottom: none;
+        }
+        .message-text {
+            font-size: 17px;
+            color: #333;
+            word-wrap: break-word;
+        }
+        .message-timestamp {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+        .error {
+            color: #FF3B30;
+            padding: 10px;
+            background: #FFEAEA;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .loading, .empty {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
+        h2 {
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>📝 Message Board</h1>
+    
+    <div class="message-form">
+        <textarea id="messageInput" placeholder="Write your message here..."></textarea>
+        <button onclick="sendMessage()">Send Message</button>
+        <div id="formError" class="error" style="display: none;"></div>
+    </div>
+
+    <div class="messages-container">
+        <h2>Messages</h2>
+        <div id="messagesList">
+            <div class="loading">Loading messages...</div>
+        </div>
+    </div>
+
+    <script>
+        async function loadMessages() {
+            const messagesList = document.getElementById('messagesList');
+            
+            try {
+                const response = await fetch('/api/messages');
+                if (!response.ok) throw new Error('Failed to load messages');
+                
+                const messages = await response.json();
+                
+                if (messages.length === 0) {
+                    messagesList.innerHTML = '<div class="empty">No messages yet. Be the first!</div>';
+                    return;
+                }
+                
+                messagesList.innerHTML = messages.map(msg => `
+                    <div class="message-item">
+                        <div class="message-text">${escapeHtml(msg.text)}</div>
+                        <div class="message-timestamp">${msg.timestamp}</div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                messagesList.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const errorDiv = document.getElementById('formError');
+            const text = input.value.trim();
+            
+            if (!text) {
+                errorDiv.textContent = 'Please write a message first!';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            errorDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || 'Failed to send');
+                }
+                
+                input.value = '';
+                loadMessages();
+                
+            } catch (error) {
+                errorDiv.textContent = error.message;
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Load messages when page loads
+        loadMessages();
+    </script>
+</body>
+</html>
